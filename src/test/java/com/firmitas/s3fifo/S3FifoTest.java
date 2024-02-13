@@ -11,7 +11,7 @@ public class S3FifoTest {
 
     @BeforeEach
     public void init() {
-        s3Fifo = new S3Fifo();
+        s3Fifo = new S3Fifo(10);
     }
 
     @Test

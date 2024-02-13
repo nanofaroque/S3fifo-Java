@@ -39,18 +39,41 @@ public class S3Fifo<K, V> {
     private final LinkedList<Item<K, V>> ghostQueue;
     private static int MAIN_QUEUE_SIZE;
 
-    public S3Fifo() {
+    public S3Fifo(int size) {
         this.smallMap = new HashMap<>();
         this.mainMap = new HashMap<>();
         this.ghostMap = new HashMap<>();
         this.smallQueue = new LinkedList<>();
         this.mainQueue = new LinkedList<>();
         this.ghostQueue = new LinkedList<>();
-        MAIN_QUEUE_SIZE = 2;
+        MAIN_QUEUE_SIZE = size;
     }
 
+    /**
+     *
+     * 2: if 𝑥 in 𝑆 or 𝑥 in 𝑀 then ⊲ Cache Hit
+     * 3:   𝑥.freq ← min(𝑥.freq + 1, 3) ⊲ Frequency is capped to 3
+     * 4: else ⊲ Cache Miss
+     * 5:   insert(𝑥)
+     * 6:   𝑥.freq ← 0
+     * */
     public V get(K key) {
-        return (V) this.smallMap.get(key).getValue();
+        if(smallMap.containsKey(key)){
+            Item<K,V> item = smallMap.get(key);
+            int freq = item.getFreq();
+            int uFreq = Math.min(freq+1,3);
+            item.setFreq(uFreq);
+            return item.getValue();
+        }else if(mainMap.containsKey(key)){
+            Item<K,V> item = mainMap.get(key);
+            int freq = item.getFreq();
+            int uFreq = Math.min(freq+1,3);
+            item.setFreq(uFreq);
+            return item.getValue();
+        }else if(ghostMap.containsKey(key)){
+            insertIntoMainQueue(key,ghostMap.get(key));
+            return ghostMap.get(key).getValue();
+        }else return null;
     }
 
     /**
@@ -78,9 +101,9 @@ public class S3Fifo<K, V> {
 
     /**
      * if SmallQueue.size >=.1*MAIN_QUEUE_SIZE
-     * evictFromSmallQueue();
+     *      evictFromSmallQueue();
      * else
-     * evictFromMainQueue()
+     *      evictFromMainQueue()
      */
     private void evict() {
         if (smallQueue.size() >= 0.1 * MAIN_QUEUE_SIZE) {
@@ -88,7 +111,6 @@ public class S3Fifo<K, V> {
         } else {
             evictFromMainQueue();
         }
-
     }
 
     /**
