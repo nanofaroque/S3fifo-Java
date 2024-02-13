@@ -1,11 +1,8 @@
 package com.firmitas.s3fifo;
 
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 
-class Item<K,V>{
+class Item<K, V> {
     private final K key;
     private final V value;
     private final int freq;
@@ -13,7 +10,7 @@ class Item<K,V>{
     public Item(K key, V value) {
         this.key = key;
         this.value = value;
-        this.freq=0;
+        this.freq = 0;
     }
 
     public K getKey() {
@@ -28,47 +25,69 @@ class Item<K,V>{
         return freq;
     }
 }
-public class S3Fifo<K,V> {
-    private final Map<K, Item<K,V>> smallMap;
-    private final Map<K, Item<K,V>> mainMap;
-    private final Map<K, Item<K,V>> ghostMap;
-    private final Queue<Item<K,V>> smallQueue;
-    private final Queue<Item<K,V>> mainQueue;
-    private final Queue<Item<K,V>> ghostQueue;
+
+public class S3Fifo<K, V> {
+    private final Map<K, Item<K, V>> smallMap;
+    private final Map<K, Item<K, V>> mainMap;
+    private final Map<K, Item<K, V>> ghostMap;
+    private final LinkedList<Item<K, V>> smallQueue;
+    private final LinkedList<Item<K, V>> mainQueue;
+    private final LinkedList<Item<K, V>> ghostQueue;
+    private static int MAIN_QUEUE_SIZE;
 
     public S3Fifo() {
         this.smallMap = new HashMap<>();
         this.mainMap = new HashMap<>();
         this.ghostMap = new HashMap<>();
-        this.smallQueue = new ArrayDeque<>();
-        this.mainQueue = new ArrayDeque<>();
-        this.ghostQueue = new ArrayDeque<>();
+        this.smallQueue = new LinkedList<>();
+        this.mainQueue = new LinkedList<>();
+        this.ghostQueue = new LinkedList<>();
+        MAIN_QUEUE_SIZE = 2;
     }
 
     public V get(K key) {
         return (V) this.smallMap.get(key).getValue();
     }
 
+    /**
+     * while mainQueue is full do
+     *      evict()
+     * if x in GhostQueue then
+     *      insert x to the head of MainQueue
+     * else
+     *      insert x to the head of S
+     */
     public void put(K key, V value) {
         System.out.println("Key: " + key);
         System.out.println("Value: " + value);
-        Item<K,V> i = new Item<>(key,value);
-        insertIntoSmallQueue(key,i);
-        return;
+        Item<K, V> i = new Item<>(key, value);
+        if (mainQueue.size() == MAIN_QUEUE_SIZE) {
+            evict();
+        }
+        if (ghostMap.containsKey(key)) {
+            insertIntoMainQueue(key, i);
+        } else {
+            insertIntoSmallQueue(key, i);
+        }
+        System.out.println(smallQueue.size());
     }
 
-    private void insertIntoSmallQueue(K key, Item<K,V> item){
-        this.smallQueue.offer(item);
-        this.smallMap.put(key,item);
+    private void evict() {
+        // to be implemented
     }
 
-    private void insertIntoMainQueue(K key, Item<K,V> item){
-        this.mainQueue.offer(item);
-        this.mainMap.put(key,item);
+    private void insertIntoSmallQueue(K key, Item<K, V> item) {
+        this.smallQueue.offerFirst(item);
+        this.smallMap.put(key, item);
     }
 
-    private void insertIntoGhostQueue(K key, Item<K,V> item){
-        this.ghostQueue.offer(item);
-        this.ghostMap.put(key,item);
+    private void insertIntoMainQueue(K key, Item<K, V> item) {
+        this.mainQueue.offerFirst(item);
+        this.mainMap.put(key, item);
+    }
+
+    private void insertIntoGhostQueue(K key, Item<K, V> item) {
+        this.ghostQueue.offerFirst(item);
+        this.ghostMap.put(key, item);
     }
 }
