@@ -9,6 +9,14 @@ This implementation is based on this paper: https://dl.acm.org/doi/pdf/10.1145/3
 * FIFO queues enable S3-FIFO to achieve good scalability with 6×
   higher throughput compared to optimized LRU at 16 threads
 
+## Uses
+```
+S3Fifo<YourKey, YourObject> s3fifo = new S3Fifo(SIZE);
+s3fifo.put(key,value);
+s3fifo.get(key);
+```
+
+
 ## Warning and future work: 
 * This is an initial java implementation, need to run all the test cases
 * I have implemented as key value pair instead of author's suggested keeping object itself
