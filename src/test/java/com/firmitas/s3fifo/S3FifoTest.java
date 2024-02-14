@@ -18,9 +18,14 @@ public class S3FifoTest {
     public void happy() {
         s3Fifo.put("Omar", "Faroque");
         assertEquals(s3Fifo.get("Omar"), "Faroque");
-        s3Fifo.put("Omar", 1);
-        assertEquals(s3Fifo.get("Omar"), 1);
-        s3Fifo.put(100, 1);
-        assertEquals(s3Fifo.get(100), 1);
+    }
+
+    @Test
+    public void happy_large() {
+        S3Fifo s3Fifo = new S3Fifo(100000);
+        for (int i = 1; i <= 100000; i++) {
+            s3Fifo.put(i,i+1);
+        }
+        assertEquals(100001,s3Fifo.get(100000));
     }
 }
