@@ -37,7 +37,8 @@ public class S3Fifo<K, V> {
     private final LinkedList<Item<K, V>> smallQueue;
     private final LinkedList<Item<K, V>> mainQueue;
     private final LinkedList<Item<K, V>> ghostQueue;
-    private static int MAIN_QUEUE_SIZE;
+    private int MAIN_QUEUE_SIZE;
+    private int SMALL_QUEUE_SIZE;
 
     public S3Fifo(int size) {
         this.smallMap = new HashMap<>();
@@ -46,34 +47,37 @@ public class S3Fifo<K, V> {
         this.smallQueue = new LinkedList<>();
         this.mainQueue = new LinkedList<>();
         this.ghostQueue = new LinkedList<>();
-        MAIN_QUEUE_SIZE = size;
+        this.MAIN_QUEUE_SIZE = (int) (size * 0.9);
+        this.SMALL_QUEUE_SIZE = (int) (size * 0.1);
     }
 
     /**
-     *
      * 2: if 𝑥 in 𝑆 or 𝑥 in 𝑀 then ⊲ Cache Hit
      * 3:   𝑥.freq ← min(𝑥.freq + 1, 3) ⊲ Frequency is capped to 3
      * 4: else ⊲ Cache Miss
      * 5:   insert(𝑥)
      * 6:   𝑥.freq ← 0
-     * */
+     */
     public V get(K key) {
-        if(smallMap.containsKey(key)){
-            Item<K,V> item = smallMap.get(key);
+        if (smallMap.containsKey(key)) {
+            System.out.println("GET from SMALL queue");
+            Item<K, V> item = smallMap.get(key);
             int freq = item.getFreq();
-            int uFreq = Math.min(freq+1,3);
+            int uFreq = Math.min(freq + 1, 3);
             item.setFreq(uFreq);
             return item.getValue();
-        }else if(mainMap.containsKey(key)){
-            Item<K,V> item = mainMap.get(key);
+        } else if (mainMap.containsKey(key)) {
+            System.out.println("GET from MAIN queue");
+            Item<K, V> item = mainMap.get(key);
             int freq = item.getFreq();
-            int uFreq = Math.min(freq+1,3);
+            int uFreq = Math.min(freq + 1, 3);
             item.setFreq(uFreq);
             return item.getValue();
-        }else if(ghostMap.containsKey(key)){
-            insertIntoMainQueue(key,ghostMap.get(key));
+        } else if (ghostMap.containsKey(key)) {
+            System.out.println("GET from GHOST queue");
+            insertIntoMainQueue(key, ghostMap.get(key));
             return ghostMap.get(key).getValue();
-        }else return null;
+        } else return null;
     }
 
     /**
@@ -88,25 +92,28 @@ public class S3Fifo<K, V> {
         System.out.println("Key: " + key);
         System.out.println("Value: " + value);
         Item<K, V> i = new Item<>(key, value);
-        if (mainQueue.size() == MAIN_QUEUE_SIZE) {
-            evict();
-        }
         if (ghostMap.containsKey(key)) {
+            if (mainQueue.size() >= MAIN_QUEUE_SIZE) {
+                evictFromMainQueue();
+            }
             insertIntoMainQueue(key, i);
         } else {
+            if (smallQueue.size() >= SMALL_QUEUE_SIZE) {
+                evictFromSmallQueue();
+            }
             insertIntoSmallQueue(key, i);
         }
         System.out.println(smallQueue.size());
     }
 
     /**
-     * if SmallQueue.size >=.1*MAIN_QUEUE_SIZE
-     *      evictFromSmallQueue();
+     * if SmallQueue.size >=0.1*MAIN_QUEUE_SIZE
+     * evictFromSmallQueue();
      * else
-     *      evictFromMainQueue()
+     * evictFromMainQueue()
      */
     private void evict() {
-        if (smallQueue.size() >= 0.1 * MAIN_QUEUE_SIZE) {
+        if (smallQueue.size() >= SMALL_QUEUE_SIZE) {
             evictFromSmallQueue();
         } else {
             evictFromMainQueue();
@@ -123,8 +130,9 @@ public class S3Fifo<K, V> {
      * 38:      else
      * 39:          remove 𝑡 from M
      * 40:          evicted ← true
-     * */
+     */
     private void evictFromMainQueue() {
+        System.out.println("Evicting from main queue");
         boolean evicted = false;
         while (!evicted && !mainQueue.isEmpty()) {
             Item<K, V> tail = mainQueue.getLast();
@@ -132,6 +140,7 @@ public class S3Fifo<K, V> {
                 tail.setFreq(tail.getFreq() - 1);
                 insertIntoMainQueue(tail.getKey(), tail);
             } else {
+                System.out.println("Evicted from main queue: " + tail.getKey());
                 mainQueue.removeLast();
                 evicted = true;
             }
@@ -152,34 +161,39 @@ public class S3Fifo<K, V> {
      * 30:      remove 𝑡 from S
      */
     private void evictFromSmallQueue() {
+        System.out.println("Evicting from small queue");
         boolean evicted = false;
         while (!evicted && !smallQueue.isEmpty()) {
             Item<K, V> tail = smallQueue.getLast();
             if (tail.getFreq() > 1) {
                 insertIntoMainQueue(tail.getKey(), tail);
-                if (mainQueue.size() >= .9 * MAIN_QUEUE_SIZE) {
+                if (mainQueue.size() >= MAIN_QUEUE_SIZE) {
                     evictFromMainQueue();
                 }
             } else {
                 insertIntoGhostQueue(tail.getKey(), tail);
                 evicted = true;
             }
+            System.out.println("Evicted from small queue: " + tail.getKey());
             smallMap.remove(tail.getKey());
             smallQueue.removeLast();
         }
     }
 
     private void insertIntoSmallQueue(K key, Item<K, V> item) {
+        System.out.println("Insert into small queue");
         this.smallQueue.offerFirst(item);
         this.smallMap.put(key, item);
     }
 
     private void insertIntoMainQueue(K key, Item<K, V> item) {
+        System.out.println("Insert into main queue");
         this.mainQueue.offerFirst(item);
         this.mainMap.put(key, item);
     }
 
     private void insertIntoGhostQueue(K key, Item<K, V> item) {
+        System.out.println("Insert into ghost queue");
         this.ghostQueue.offerFirst(item);
         this.ghostMap.put(key, item);
     }
